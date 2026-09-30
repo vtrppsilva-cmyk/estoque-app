@@ -1,0 +1,11 @@
+{
+  "name": "Controle de Estoque",
+  "short_name": "Estoque",
+  "description": "Controle de estoque físico",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#202124",
+  "lang": "pt-BR",
+  "icons": []
+}

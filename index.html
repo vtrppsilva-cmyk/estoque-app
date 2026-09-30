@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Estoque</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#202124">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Arial,Helvetica,sans-serif;background:#f3f5f7;color:#202124}body{padding-bottom:92px}.app{max-width:1100px;margin:auto;min-height:100vh;background:#fff;box-shadow:0 0 24px #0000000b}header{padding:16px 18px;border-bottom:1px solid #e4e6e8;position:sticky;top:0;background:#fff;z-index:5}header h1{margin:0;font-size:23px}.sub{color:#6b7280;font-size:13px;margin-top:4px}main{padding:14px 16px 110px}.search{width:100%;padding:14px 15px;border:1px solid #cfd4da;border-radius:12px;font-size:16px;margin-bottom:12px;outline:none}.search:focus,input:focus,select:focus{border-color:#202124;box-shadow:0 0 0 3px #20212412}table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;overflow:hidden;border:1px solid #e5e7eb;border-radius:12px}th,td{padding:13px 12px;border-bottom:1px solid #edf0f2;text-align:left;font-size:14px}th{font-size:12px;color:#6b7280;background:#fafbfc}tr:last-child td{border-bottom:0}.empty{text-align:center;color:#777;padding:45px 10px}.bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(1100px,100%);background:#fff;border-top:1px solid #ddd;padding:8px 9px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;z-index:10;box-shadow:0 -4px 16px #0000000b}button{border:1px solid #d1d5db;background:#fff;color:#202124;border-radius:10px;padding:11px 7px;cursor:pointer;font-weight:700;font-size:12px;min-height:42px}button:hover{background:#f3f4f6}.primary{background:#202124;color:#fff;border-color:#202124}.danger{color:#b00020}.modal{display:none;position:fixed;inset:0;background:#0008;z-index:20;align-items:flex-end;justify-content:center;padding:0}.modal.show{display:flex}.box{background:#fff;border-radius:18px 18px 0 0;width:min(620px,100%);max-height:92vh;overflow:auto;padding:20px 18px 24px;box-shadow:0 -10px 35px #0003}.box h2{margin:0 0 14px;font-size:21px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{display:block;font-size:13px;font-weight:700;margin:11px 0 6px}input,select{width:100%;padding:13px;border:1px solid #cfd4da;border-radius:9px;font-size:16px;background:#fff}.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}.actions button{flex:1;min-width:110px}.card{border:1px solid #e0e3e7;border-radius:12px;padding:13px;margin:9px 0;background:#fff}.small{font-size:12px;color:#6b7280;margin-top:4px}.pill{display:inline-block;padding:4px 8px;border-radius:20px;background:#eef0f2;font-size:11px}.qty{font-weight:800}.shelf{white-space:nowrap}.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.hint{padding:10px 12px;border-radius:10px;background:#f6f7f8;color:#555;font-size:12px;margin:8px 0}.toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#202124;color:#fff;padding:10px 14px;border-radius:999px;font-size:13px;z-index:50;display:none;max-width:90%}.toast.show{display:block}@media(max-width:700px){body{padding-bottom:100px}.app{width:100%;box-shadow:none}main{padding:12px 10px 115px}header{padding:14px 12px}.bottom{grid-template-columns:repeat(3,1fr);padding:7px 7px}.bottom button{font-size:11px;padding:9px 3px;min-height:46px}.row,.filters{grid-template-columns:1fr}.box{padding:18px 14px 22px}table{border:0;border-radius:0}thead{display:none}tbody tr{display:block;border:1px solid #e4e7eb;border-radius:12px;margin-bottom:9px;padding:10px;background:#fff}tbody td{display:flex;justify-content:space-between;gap:12px;padding:7px 3px;border:0}tbody td:first-child{display:block;padding-bottom:9px;border-bottom:1px solid #eef0f2}tbody td:nth-child(2),tbody td:nth-child(3){display:flex}tbody td:nth-child(2)::before{content:'QUANTIDADE';font-size:10px;color:#777;font-weight:700}tbody td:nth-child(3)::before{content:'PRATELEIRA';font-size:10px;color:#777;font-weight:700}.empty{padding:30px 8px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><h1>Estoque</h1><div class="sub">Produtos • quantidade • prateleira • <span id="saveStatus">salvamento automático</span></div></header>
+<main>
+<input id="search" class="search" placeholder="Pesquisar produto...">
+<table><thead><tr><th>PRODUTO</th><th>QUANTIDADE</th><th>PRATELEIRA</th></tr></thead>
+<tbody id="products"></tbody></table>
+</main>
+<nav class="bottom">
+<button id="btnCount">1 • CONTAGEM</button>
+<button id="btnExit">2 • SAÍDA</button>
+<button id="btnEntry">3 • ENTRADA</button>
+<button id="btnShelf">4 • PRATELEIRA</button>
+<button id="btnHistory">5 • HISTÓRICO</button>
+<button id="btnProduct">6 • CADASTRAR</button>
+</nav>
+</div>
+
+<div id="modal" class="modal"><div class="box" id="modalBox"></div></div><div id="toast" class="toast"></div>
+
+<script>
+const KEY='estoque_app_v1';
+const OLD_KEYS=['estoque_app_v2','estoque_app_v1'];
+const $=id=>document.getElementById(id);
+function makeId(){return (typeof crypto!=='undefined' && crypto.randomUUID)?crypto.randomUUID():'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10)}
+function emptyDB(){return {products:[],technicians:[],movements:[]}}
+function loadDB(){
+  for(const key of OLD_KEYS){
+    try{
+      const raw=localStorage.getItem(key);
+      if(raw){const parsed=JSON.parse(raw); if(parsed&&Array.isArray(parsed.products)&&Array.isArray(parsed.movements)) return parsed;}
+    }catch(e){console.warn('Erro ao ler dados salvos',e)}
+  }
+  return emptyDB();
+}
+let db=loadDB();
+if(!db||!Array.isArray(db.products)||!Array.isArray(db.movements)) db=emptyDB();
+function save(){
+  try{
+    localStorage.setItem(KEY,JSON.stringify(db));
+    localStorage.setItem('estoque_app_last_save',new Date().toISOString());
+    renderProducts();
+    const st=$('saveStatus'); if(st){st.textContent='salvo automaticamente'; setTimeout(()=>{if($('saveStatus')) $('saveStatus').textContent='salvamento automático'},1200)}
+  }catch(e){alert('Não foi possível salvar os dados neste dispositivo. Verifique se o armazenamento do navegador está habilitado.'); console.error(e)}
+}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+function show(html){document.getElementById('modalBox').innerHTML=html;document.getElementById('modal').classList.add('show')}
+function renderProducts(){
+ const q=($('search').value||'').toLowerCase();
+ const list=db.products.filter(p=>!p.archived && (p.name.toLowerCase().includes(q)||(p.code||'').toLowerCase().includes(q)));
+ const el=document.getElementById('products');
+ if(!list.length){el.innerHTML='<tr><td colspan="3" class="empty">Nenhum produto cadastrado ainda.</td></tr>';return}
+ el.innerHTML=list.map(p=>`<tr><td><b>${esc(p.name)}</b><div class="small">${esc(p.code||'')}</div></td><td>${p.qty} ${esc(p.unit)}</td><td>${esc(p.shelf||'—')}</td></tr>`).join('')
+}
+function productOptions(){return db.products.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${esc(p.name)} — ${p.qty} ${esc(p.unit)}</option>`).join('')}
+function openProduct(){
+ show(`<h2>Cadastrar produto</h2>
+ <label>Nome do produto</label><input id="pn">
+ <div class="row"><div><label>Código (opcional)</label><input id="pc"></div><div><label>Unidade</label><input id="pu" placeholder="UN, caixa, metro..."></div></div>
+ <div class="row"><div><label>Quantidade inicial</label><input id="pq" type="number" min="0" value="0"></div><div><label>Prateleira (opcional)</label><input id="ps" placeholder="Deixe vazio por enquanto"></div></div>
+ <div class="actions"><button data-action="openProductList">Gerenciar produtos</button><button data-action="closeModal">Cancelar</button><button class="primary" data-action="addProduct">Cadastrar</button></div>`)
+}
+function openProductList(){
+ show(`<h2>Gerenciar produtos</h2>
+ <div class="small">Use esta opção quando um produto deixar de ser utilizado. O produto será arquivado, preservando o histórico de movimentações.</div>
+ ${db.products.length?db.products.map(p=>`<div class="card"><b>${esc(p.name)}</b><br><span class="small">${p.qty} ${esc(p.unit)}${p.code?' • '+esc(p.code):''}</span>
+ <div class="actions"><button class="danger" data-action="archiveProduct" data-id="${p.id}">Apagar produto</button></div></div>`).join(''):'<div class="empty">Nenhum produto cadastrado.</div>'}
+ <div class="actions"><button data-action="openProduct">Voltar</button></div>`)
+}
+function archiveProduct(id){
+ let p=db.products.find(x=>x.id===id);
+ if(!p)return;
+ if(p.qty!==0)return alert('Este produto ainda possui estoque. Zere ou ajuste o estoque antes de apagar o produto.');
+ if(!confirm('Apagar este produto do cadastro? O histórico de movimentações será preservado.'))return;
+ p.archived=true;
+ p.archivedAt=new Date().toISOString();
+ save();
+ openProductList();
+}
+function addProduct(){
+ let name=$('pn').value.trim(); if(!name)return alert('Informe o nome do produto.');
+ let p={id:makeId(),name,code:$('pc').value.trim(),unit:$('pu').value.trim()||'UN',qty:Number($('pq').value)||0,shelf:$('ps').value.trim(),createdAt:new Date().toISOString()};
+ db.products.push(p); db.movements.push({id:makeId(),type:'cadastro',productId:p.id,qty:p.qty,date:new Date().toISOString(),note:'Quantidade inicial'}); save(); closeModal();
+}
+function openEntry(){
+ if(!db.products.length)return alert('Cadastre pelo menos um produto primeiro.');
+ show(`<h2>Entrada de material</h2><label>Produto</label><select id="ep">${productOptions()}</select>
+ <label>Quantidade recebida</label><input id="eq" type="number" min="1" value="1">
+ <label>Observação / NF (opcional)</label><input id="en" placeholder="Ex.: NF 12345">
+ <div class="actions"><button data-action="openEntriesHistory">Ver entradas</button><button data-action="closeModal">Cancelar</button><button class="primary" data-action="entry">Dar entrada</button></div>`)
+}
+function entry(){let p=db.products.find(x=>x.id===$('ep').value),q=Number($('eq').value);if(!q||q<1)return alert('Informe uma quantidade válida.');p.qty+=q;db.movements.push({id:makeId(),type:'entrada',productId:p.id,qty:q,date:new Date().toISOString(),note:$('en').value});save();closeModal();toast('Entrada registrada');}
+function openExit(){
+ if(!db.products.length)return alert('Cadastre pelo menos um produto primeiro.');
+ show(`<h2>Saída de material</h2><label>Produto</label><select id="xp">${productOptions()}</select>
+ <label>Quantidade</label><input id="xq" type="number" min="1" value="1">
+ <label>Técnico</label><input id="xt" placeholder="Nome do técnico">
+ <label>Observação (opcional)</label><input id="xn">
+ <div class="actions"><button data-action="closeModal">Cancelar</button><button class="primary" data-action="exitStock">Confirmar saída</button></div>`)
+}
+function exitStock(){let p=db.products.find(x=>x.id===$('xp').value),q=Number($('xq').value),t=$('xt').value.trim();if(!q||q<1)return alert('Informe uma quantidade válida.');if(q>p.qty)return alert('Quantidade maior que o estoque disponível.');if(!t)return alert('Informe o técnico.');p.qty-=q;db.movements.push({id:makeId(),type:'saida',productId:p.id,qty:q,technician:t,date:new Date().toISOString(),note:$('xn').value});save();closeModal();toast('Saída registrada');}
+function openCount(){
+ if(!db.products.length)return alert('Cadastre pelo menos um produto primeiro.');
+ show(`<h2>Contagem física</h2><label>Produto</label><select id="cp">${productOptions()}</select><div id="cc"></div>
+ <div class="actions"><button data-action="closeModal">Cancelar</button><button class="primary" data-action="countSave">Salvar contagem</button></div>`);
+ const cp=$('cp'); if(cp) cp.addEventListener('change',countCurrent); countCurrent()
+}
+function countCurrent(){let p=db.products.find(x=>x.id===$('cp').value);$('cc').innerHTML=`<div class="card">Quantidade no sistema: <b>${p.qty} ${esc(p.unit)}</b></div><label>Quantidade contada fisicamente</label><input id="cq" type="number" min="0" value="${p.qty}">`}
+function countSave(){let p=db.products.find(x=>x.id===$('cp').value),q=Number($('cq').value);if(q<0)return;let before=p.qty,diff=q-before;p.qty=q;db.movements.push({id:makeId(),type:'contagem',productId:p.id,qty:q,difference:diff,previousQty:before,date:new Date().toISOString(),note:'Contagem física'});save();closeModal();toast('Contagem salva: '+(diff>0?'+':'')+diff+' '+p.unit)}
+function openShelf(){
+ if(!db.products.length)return alert('Cadastre pelo menos um produto primeiro.');
+ show(`<h2>Prateleira</h2><label>Produto</label><select id="sp">${productOptions()}</select><label>Prateleira</label><input id="ss" placeholder="Ex.: E1-N2">
+ <div class="actions"><button data-action="closeModal">Cancelar</button><button class="primary" data-action="shelfSave">Salvar localização</button></div>`)
+ $('sp').onchange=()=>{let p=db.products.find(x=>x.id===$('sp').value);$('ss').value=p.shelf||''};$('sp').onchange()
+}
+function shelfSave(){let p=db.products.find(x=>x.id===$('sp').value);p.shelf=$('ss').value.trim();save();closeModal();toast('Localização atualizada');}
+function openHistory(){
+ let rows=db.movements.filter(m=>m.type==='saida').sort((a,b)=>b.date.localeCompare(a.date));
+ show(`<h2>Histórico de saídas</h2><div class="filters"><input id="hfTech" placeholder="Filtrar por técnico"><input id="hfProd" placeholder="Filtrar por produto"></div><div id="historyList"></div><div class="actions"><button data-action="closeModal">Fechar</button></div>`);
+ const render=()=>{const t=$('hfTech').value.trim().toLowerCase(),q=$('hfProd').value.trim().toLowerCase();const filtered=rows.filter(m=>(m.technician||'').toLowerCase().includes(t)&&((db.products.find(x=>x.id===m.productId)?.name||'').toLowerCase().includes(q)));$('historyList').innerHTML=filtered.length?filtered.map(m=>{let p=db.products.find(x=>x.id===m.productId);return `<div class="card"><b>${esc(p?.name||'Produto removido')}</b><br>${m.qty} ${esc(p?.unit||'')} • ${esc(m.technician||'—')}<div class="small">${new Date(m.date).toLocaleString('pt-BR')}${m.note?' • '+esc(m.note):''}</div></div>`}).join(''):'<div class="empty">Nenhuma saída encontrada.</div>'};$('hfTech').oninput=render;$('hfProd').oninput=render;render()
+}
+function openEntriesHistory(){
+ let rows=db.movements.filter(m=>m.type==='entrada' && !m.canceled).sort((a,b)=>b.date.localeCompare(a.date));
+ show(`<h2>Histórico de entradas</h2>
+ ${rows.length?rows.map(m=>{let p=db.products.find(x=>x.id===m.productId);return `<div class="card">
+ <b>${esc(p?.name||'Produto removido')}</b><br>
+ Entrada: <b>+${m.qty} ${esc(p?.unit||'')}</b>
+ <div class="small">${new Date(m.date).toLocaleString('pt-BR')}${m.note?' • '+esc(m.note):''}</div>
+ <div class="actions"><button class="danger" data-action="cancelEntry" data-id="${m.id}">Excluir esta entrada</button></div>
+ </div>`}).join(''):'<div class="empty">Nenhuma entrada registrada.</div>'}
+ <div class="actions"><button data-action="closeModal">Fechar</button></div>`)
+}
+function cancelEntry(id){
+ let m=db.movements.find(x=>x.id===id && x.type==='entrada' && !x.canceled);
+ if(!m)return;
+ let p=db.products.find(x=>x.id===m.productId);
+ if(!p)return alert('O produto desta entrada não foi encontrado.');
+ if(m.qty>p.qty)return alert('Não é possível excluir esta entrada porque parte desse estoque já foi retirada. Primeiro ajuste o estoque para que a reversão seja possível.');
+ if(!confirm('Excluir esta entrada? A quantidade será retirada novamente do estoque.'))return;
+ p.qty-=m.qty;
+ m.canceled=true;
+ m.canceledAt=new Date().toISOString();
+ db.movements.push({id:makeId(),type:'estorno_entrada',productId:p.id,qty:m.qty,date:new Date().toISOString(),note:'Estorno da entrada excluída'});
+ save();
+ openEntriesHistory();
+}
+function wireApp(){
+  const bind=(id,fn)=>{const el=$(id);if(el)el.addEventListener('click',fn)};
+  bind('btnCount',openCount); bind('btnExit',openExit); bind('btnEntry',openEntry);
+  bind('btnShelf',openShelf); bind('btnHistory',openHistory); bind('btnProduct',openProduct);
+  const search=$('search'); if(search) search.addEventListener('input',renderProducts);
+  const modal=$('modal');
+  if(modal){
+    modal.addEventListener('click',e=>{
+      if(e.target===modal) closeModal();
+      const b=e.target.closest('[data-action]'); if(!b) return;
+      const action=b.dataset.action, id=b.dataset.id;
+      if(action==='archiveProduct') return archiveProduct(id);
+      if(action==='cancelEntry') return cancelEntry(id);
+      const actions={closeModal,openProductList,addProduct,openProduct,openEntriesHistory,entry,exitStock,countCurrent,countSave,shelfSave}; const fn=actions[action]; if(typeof fn==='function') fn();
+    });
+  }
+}
+
+wireApp();
+renderProducts();
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+</script>
+</body>
+</html>
